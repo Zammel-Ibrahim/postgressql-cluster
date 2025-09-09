@@ -1,0 +1,26 @@
+- name: Create udev rule for /dev/watchdog
+  ansible.builtin.copy:
+    content: 'KERNEL=="watchdog", OWNER="postgres", GROUP="root", MODE="0600"'
+    dest: /etc/udev/rules.d/60-watchdog.rules
+    mode: 0644
+
+- name: Load softdog module on boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/watchdog.conf
+    content: "softdog\n"
+
+- name: Restart module loader
+  ansible.builtin.systemd:
+    name: systemd-modules-load
+    state: restarted
+
+- name: Enable watchdog in patroni.yml
+  ansible.builtin.replace:
+    path: /etc/patroni/patroni.yml
+    regexp: '^#watchdog:'
+    replace: 'watchdog:'
+
+- name: Restart Patroni to apply watchdog
+  ansible.builtin.systemd:
+    name: patroni
+    state: restarted
