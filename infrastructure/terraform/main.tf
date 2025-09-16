@@ -5,7 +5,7 @@ provider "aws" {
 # Create an AWS key pair from provided public key
 resource "aws_key_pair" "deployer" {
   key_name   = var.ssh_key_name
-  public_key = var.ssh_public_key
+  public_key = file("~/.ssh/deployer-key.pub")
 }
 
 # 1) Mgmt VPC (for bastion)

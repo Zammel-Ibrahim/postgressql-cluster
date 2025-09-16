@@ -22,13 +22,13 @@ resource "aws_security_group" "pg_sg" {
   vpc_id      = var.vpc_id
   description = "Patroni/Postgres"
   ingress {
-    security_groups = aws_security_group.pg_sg.id
+    #security_groups = aws_security_group.pg_sg.id
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
   }
   ingress {
-    security_groups = aws_security_group.pg_sg.id
+    #security_groups = aws_security_group.pg_sg.id
     from_port       = 9000
     to_port         = 9001
     protocol        = "tcp"
