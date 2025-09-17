@@ -10,15 +10,17 @@
     remote_src: true
     creates: "/usr/local/bin/etcd"
 
-- name: Create etcd user and data dir
+- name: Create etcd user
   user:
     name: etcd
     system: yes
+- name: Create data dir
   file:
     path: /var/lib/etcd
     state: directory
     owner: etcd
     group: etcd
+    mode: '0755'
 
 - name: Create systemd unit
   copy:
