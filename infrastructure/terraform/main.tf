@@ -96,7 +96,7 @@ resource "aws_security_group" "bastion_sg" {
 }
 
 resource "aws_instance" "bastion" {
-  ami                    = "<YOUR_AMI_ID>"
+  ami                    = "ami-0b09ffb6d8b58ca91"
   instance_type          = var.instance_type
   key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.bastion_sg.id]
