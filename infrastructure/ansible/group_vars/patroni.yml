@@ -1,0 +1,16 @@
+patroni_scope: "pgsql-cluster"
+patroni_rest_port: 8008
+patroni_listen: "{{ ansible_default_ipv4.address }}:5432"
+patroni_etcd_endpoints:
+  - "http://<ETCD1_IP>:2379"
+  - "http://<ETCD2_IP>:2379"
+  - "http://<ETCD3_IP>:2379"
+patroni_postgres_bin_dir: "/usr/pgsql-18/bin"
+patroni_data_dir: "/var/lib/pgsql/18/data"
+keepalived_vip: "10.10.100.10"
+keepalived_interface: "eth0"
+keepalived_priority_map:
+  pg1: 150
+  pg2: 140
+  pg3: 130
+  pg4: 120

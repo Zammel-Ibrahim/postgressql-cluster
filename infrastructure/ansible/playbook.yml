@@ -1,0 +1,11 @@
+- name: Bootstrap etcd cluster
+  hosts: etcd
+  become: yes
+  roles:
+    - etcd
+
+- name: Configure Patroni + Keepalived
+  hosts: patroni
+  become: yes
+  roles:
+    - patroni

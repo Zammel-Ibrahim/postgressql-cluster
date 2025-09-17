@@ -1,0 +1,39 @@
+- name: Install PostgreSQL-18 & dependencies
+  yum:
+    name:
+      - https://download.postgresql.org/pub/repos/yum/18/redhat/rhel-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      - postgresql18-server
+      - python3-psycopg2
+      - python3-pip
+    state: present
+
+- name: pip install patroni[etcd]
+  pip:
+    name: patroni[etcd]
+    executable: pip3
+
+- name: Initialize PG data dir
+  shell: /usr/pgsql-18/bin/initdb -D {{ patroni_data_dir }}
+  args:
+    creates: "{{ patroni_data_dir }}/PG_VERSION"
+
+- name: Copy Patroni config
+  template:
+    src: patroni.yml.j2
+    dest: /etc/patroni.yml
+    mode: 0644
+
+- name: Create Keepalived conf
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    mode: 0644
+
+- name: Enable & start services
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - patroni
+    - keepalived

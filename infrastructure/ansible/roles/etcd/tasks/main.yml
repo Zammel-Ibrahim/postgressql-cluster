@@ -1,0 +1,49 @@
+- name: Download etcd tarball
+  get_url:
+    url: "https://github.com/etcd-io/etcd/releases/download/{{ etcd_version }}/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
+    dest: /tmp/etcd.tar.gz
+
+- name: Extract etcd
+  unarchive:
+    src: /tmp/etcd.tar.gz
+    dest: /usr/local/bin/
+    remote_src: true
+    creates: "/usr/local/bin/etcd"
+
+- name: Create etcd user and data dir
+  user:
+    name: etcd
+    system: yes
+  file:
+    path: /var/lib/etcd
+    state: directory
+    owner: etcd
+    group: etcd
+
+- name: Create systemd unit
+  copy:
+    dest: /etc/systemd/system/etcd.service
+    content: |
+      [Unit]
+      Description=etcd key-value store
+      After=network.target
+      [Service]
+      User=etcd
+      ExecStart=/usr/local/bin/etcd \
+        --name {{ inventory_hostname }} \
+        --data-dir /var/lib/etcd \
+        --initial-advertise-peer-urls http://{{ ansible_default_ipv4.address }}:2380 \
+        --listen-peer-urls http://0.0.0.0:2380 \
+        --listen-client-urls http://0.0.0.0:2379 \
+        --advertise-client-urls http://{{ ansible_default_ipv4.address }}:2379 \
+        --initial-cluster {{ etcd_initial_cluster }} \
+        --initial-cluster-state new
+      Restart=always
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Start etcd
+  systemd:
+    name: etcd
+    enabled: yes
+    state: started
