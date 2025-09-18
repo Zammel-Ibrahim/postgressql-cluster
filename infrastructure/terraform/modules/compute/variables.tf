@@ -37,3 +37,9 @@ variable "ssh_key_name" {
   description = "SSH key pair name to assign"
   type        = string
 }
+
+ variable "bastion_sg_id" {
+  description = "Security Group ID of the bastion host" 
+  type = string 
+}
+

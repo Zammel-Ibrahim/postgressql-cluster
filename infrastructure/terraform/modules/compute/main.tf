@@ -8,6 +8,24 @@ resource "aws_security_group" "etcd_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.pg_sg.id]
   }
+  ingress {
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    #security_groups = [var.bastion_sg_id]
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow SSH from bastion"
+  }
+  
+  ingress {
+    from_port       = -1
+    to_port         = -1
+    protocol        = "icmp"
+    #security_groups = [var.bastion_sg_id]
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow ping from all instances"
+  }
+  
   egress { 
     from_port = 0 
     to_port = 0 

@@ -1,7 +1,7 @@
 
 terraform {
   backend "s3" {
-      bucket         = "tf-izm-230219889"
+      bucket         = "tf-izm-23021988"
       key            = "infra/terraform.tfstate"
       region         = "us-east-1"
       dynamodb_table = "terraform-locks"   # optionnel mais recommandé
@@ -74,6 +74,7 @@ module "compute_db1" {
   instance_type  = var.instance_type
   name_prefix    = "db1"
   ssh_key_name   = aws_key_pair.deployer.key_name
+  bastion_sg_id  = aws_security_group.bastion_sg.id 
 }
 module "compute_db2" {
   source         = "./modules/compute"
@@ -85,6 +86,7 @@ module "compute_db2" {
   instance_type  = var.instance_type
   name_prefix    = "db2"
   ssh_key_name   = aws_key_pair.deployer.key_name
+  bastion_sg_id  = aws_security_group.bastion_sg.id 
 }
 
 # 5) Bastion in Mgmt VPC
@@ -113,4 +115,59 @@ resource "aws_instance" "bastion" {
   vpc_security_group_ids = [aws_security_group.bastion_sg.id]
   subnet_id              = module.vpc_mgmt.public_subnets[0]
   tags = { Name = "bastion" }
+}
+
+
+
+
+# 🔁 Routes dans VPC mgmt vers DB1
+resource "aws_route" "mgmt_public_to_db1" {
+  route_table_id              = module.vpc_mgmt.public_route_table_id
+  destination_cidr_block      = var.db_vpc_cidrs[0]
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db1.id
+}
+
+resource "aws_route" "mgmt_private_to_db1" {
+  route_table_id              = module.vpc_mgmt.private_route_table_id
+  destination_cidr_block      = var.db_vpc_cidrs[0]
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db1.id
+}
+
+# 🔁 Routes dans VPC db1 vers Mgmt
+resource "aws_route" "db1_public_to_mgmt" {
+  route_table_id              = module.vpc_db1.public_route_table_id
+  destination_cidr_block      = var.mgmt_vpc_cidr
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db1.id
+}
+
+resource "aws_route" "db1_private_to_mgmt" {
+  route_table_id              = module.vpc_db1.private_route_table_id
+  destination_cidr_block      = var.mgmt_vpc_cidr
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db1.id
+}
+
+# 🔁 Routes dans VPC mgmt vers DB2
+resource "aws_route" "mgmt_public_to_db2" {
+  route_table_id              = module.vpc_mgmt.public_route_table_id
+  destination_cidr_block      = var.db_vpc_cidrs[1]
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db2.id
+}
+
+resource "aws_route" "mgmt_private_to_db2" {
+  route_table_id              = module.vpc_mgmt.private_route_table_id
+  destination_cidr_block      = var.db_vpc_cidrs[1]
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db2.id
+}
+
+# 🔁 Routes dans VPC db2 vers Mgmt
+resource "aws_route" "db2_public_to_mgmt" {
+  route_table_id              = module.vpc_db2.public_route_table_id
+  destination_cidr_block      = var.mgmt_vpc_cidr
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db2.id
+}
+
+resource "aws_route" "db2_private_to_mgmt" {
+  route_table_id              = module.vpc_db2.private_route_table_id
+  destination_cidr_block      = var.mgmt_vpc_cidr
+  vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db2.id
 }
