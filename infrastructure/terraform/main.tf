@@ -196,6 +196,8 @@ resource "aws_nat_gateway" "db2_nat" {
   tags          = { Name = "db2-nat-gateway" }
 }
 
+
+# Route vers Internet via NAT Gateway
 resource "aws_route" "db1_private_to_nat" {
   route_table_id         = module.vpc_db1.private_route_table_id
   destination_cidr_block = "0.0.0.0/0"
