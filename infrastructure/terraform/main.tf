@@ -171,3 +171,41 @@ resource "aws_route" "db2_private_to_mgmt" {
   destination_cidr_block      = var.mgmt_vpc_cidr
   vpc_peering_connection_id   = aws_vpc_peering_connection.mgmt_db2.id
 }
+
+
+# ajout NAT Gateway
+resource "aws_eip" "db1_nat_eip" {
+  #vpc  = true
+  tags = { Name = "db1-nat-eip" }
+}
+
+resource "aws_eip" "db2_nat_eip" {
+  #vpc  = true
+  tags = { Name = "db2-nat-eip" }
+}
+
+resource "aws_nat_gateway" "db1_nat" {
+  allocation_id = aws_eip.db1_nat_eip.id
+  subnet_id     = module.vpc_db1.public_subnets[0]
+  tags          = { Name = "db1-nat-gateway" }
+}
+
+resource "aws_nat_gateway" "db2_nat" {
+  allocation_id = aws_eip.db2_nat_eip.id
+  subnet_id     = module.vpc_db2.public_subnets[0]
+  tags          = { Name = "db2-nat-gateway" }
+}
+
+resource "aws_route" "db1_private_to_nat" {
+  route_table_id         = module.vpc_db1.private_route_table_id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.db1_nat.id
+}
+
+resource "aws_route" "db2_private_to_nat" {
+  route_table_id         = module.vpc_db2.private_route_table_id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.db2_nat.id
+}
+
+
