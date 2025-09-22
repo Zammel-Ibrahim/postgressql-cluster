@@ -1,0 +1,8 @@
+patroni_data_dir: "/var/lib/pgsql/16/data"
+pg_name: "{{ inventory_hostname }}"
+pg_port: 5432
+patroni_data_dir: "/var/lib/pgsql/16/data"
+etcd_host: "etcd1:2379"
+vip_address: "10.10.101.250"
+vip_interface: "ens5"
+priority: 100
