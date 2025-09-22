@@ -1,39 +1,80 @@
-- name: Install PostgreSQL-18 & dependencies
-  yum:
+- name: Installer le dépôt PostgreSQL 16
+  dnf:
+    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    state: present
+    disable_gpg_check: yes
+
+- name: Désactiver le module PostgreSQL par défaut
+  command: dnf -qy module disable postgresql
+
+- name: Installer PostgreSQL 16
+  dnf:
     name:
-      - https://download.postgresql.org/pub/repos/yum/18/redhat/rhel-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-      - postgresql18-server
-      - python3-psycopg2
-      - python3-pip
+      - postgresql16
+      - postgresql16-server
     state: present
 
-- name: pip install patroni[etcd]
+- name: Installer pip3 si absent
+  package:
+    name: python3-pip
+    state: present
+
+- name: Installer Patroni avec etcd
   pip:
     name: patroni[etcd]
     executable: pip3
 
-- name: Initialize PG data dir
-  shell: /usr/pgsql-18/bin/initdb -D {{ patroni_data_dir }}
+- name: Créer le répertoire de données PostgreSQL
+  file:
+    path: "{{ patroni_data_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0700'
+
+- name: Initialiser PostgreSQL 16
+  become: true
+  become_user: postgres
+  shell: "/usr/pgsql-16/bin/initdb -D {{ patroni_data_dir }}"
   args:
     creates: "{{ patroni_data_dir }}/PG_VERSION"
 
-- name: Copy Patroni config
+- name: Déployer la configuration Patroni
   template:
     src: patroni.yml.j2
     dest: /etc/patroni.yml
-    mode: 0644
+    mode: '0644'
 
-- name: Create Keepalived conf
+- name: Créer le service systemd pour Patroni
+  copy:
+    dest: /etc/systemd/system/patroni.service
+    content: |
+      [Unit]
+      Description=Patroni PostgreSQL HA
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=postgres
+      ExecStart=/usr/local/bin/patroni /etc/patroni.yml
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0644'
+
+- name: Déployer la configuration Keepalived
   template:
     src: keepalived.conf.j2
     dest: /etc/keepalived/keepalived.conf
-    mode: 0644
+    mode: '0644'
 
-- name: Enable & start services
+- name: Activer et démarrer Patroni & Keepalived
   systemd:
     name: "{{ item }}"
     enabled: yes
     state: started
+    daemon_reload: yes
   loop:
     - patroni
     - keepalived

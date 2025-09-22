@@ -15,28 +15,17 @@ command -v ansible-playbook >/dev/null 2>&1 || {
 echo "==> Récupération des outputs Terraform"
 pushd "${TF_ROOT}" >/dev/null
 
-# Assure que Terraform est initialisé
 terraform init -input=false >/dev/null
 
-# Récupère les outputs
 BASTION_IP=$(terraform output -raw bastion_ip)
 ETCD_IPS_JSON=$(terraform output -json etcd_private_ips)
 PG_IPS_JSON=$(terraform output -json pg_private_ips)
-SSH_KEY_PATH=$(terraform output -raw ssh_private_key_path)
 KEY_PATH="$HOME/.ssh/deployer-key"
 
 if [ ! -f "$KEY_PATH" ]; then
   echo "❌ Clé privée introuvable à $KEY_PATH"
   exit 1
 fi
-
-echo "📦 Copie de la clé vers la bastion..."
-#scp -i "$KEY_PATH" "$KEY_PATH" ec2-user@"$BASTION_IP":~/.ssh/deployer-key
-
-echo "🔐 Fixation des permissions sur la bastion..."
-#ssh -i "$KEY_PATH" ec2-user@"$BASTION_IP" "chmod 400 ~/.ssh/deployer-key"
-
-echo "✅ Clé copiée et sécurisée sur la bastion."
 
 popd >/dev/null
 
@@ -59,15 +48,15 @@ cat >> "${ANSIBLE_ROOT}/inventory.ini" <<EOF
 EOF
 
 for ip in $(echo "${PG_IPS_JSON}" | jq -r '.[]'); do
-  echo "pg-${ip//./-} ansible_host=${ip} ansible_user=ec2-user" \
+  echo "pg-${ip//./-} ansible_host=${ip} ansible_user=mmc" \
     >> "${ANSIBLE_ROOT}/inventory.ini"
 done
 
 cat >> "${ANSIBLE_ROOT}/inventory.ini" <<EOF
 
 [all:vars]
-ansible_ssh_common_args='-o ProxyCommand="ssh -i ~/.ssh/deployer-key -W %h:%p -q ec2-user@${BASTION_IP}"'
-ansible_ssh_private_key_file='~/.ssh/deployer-key'
+ansible_ssh_common_args='-o ProxyCommand="ssh -i ${KEY_PATH} -W %h:%p -q ec2-user@${BASTION_IP}"'
+ansible_ssh_private_key_file='${KEY_PATH}'
 EOF
 
 echo "==> Lancement des playbooks Ansible"

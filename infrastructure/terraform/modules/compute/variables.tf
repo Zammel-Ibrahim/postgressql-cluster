@@ -45,5 +45,6 @@ variable "ssh_key_name" {
 
 variable "iam_instance_profile" {
   type = string
+  default = null
 }
 
