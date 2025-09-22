@@ -1,3 +1,4 @@
+---
 - name: Installer le dépôt PostgreSQL 16
   dnf:
     name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
@@ -24,6 +25,11 @@
     name: patroni[etcd]
     executable: pip3
 
+- name: Installer Keepalived
+  dnf:
+    name: keepalived
+    state: present
+
 - name: Créer le répertoire de données PostgreSQL
   file:
     path: "{{ patroni_data_dir }}"
@@ -39,10 +45,22 @@
   args:
     creates: "{{ patroni_data_dir }}/PG_VERSION"
 
+- name: Créer le dossier /etc/keepalived
+  file:
+    path: /etc/keepalived
+    state: directory
+    mode: '0755'
+
 - name: Déployer la configuration Patroni
   template:
     src: patroni.yml.j2
     dest: /etc/patroni.yml
+    mode: '0644'
+
+- name: Déployer la configuration Keepalived
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
     mode: '0644'
 
 - name: Créer le service systemd pour Patroni
@@ -61,12 +79,6 @@
 
       [Install]
       WantedBy=multi-user.target
-    mode: '0644'
-
-- name: Déployer la configuration Keepalived
-  template:
-    src: keepalived.conf.j2
-    dest: /etc/keepalived/keepalived.conf
     mode: '0644'
 
 - name: Activer et démarrer Patroni & Keepalived
