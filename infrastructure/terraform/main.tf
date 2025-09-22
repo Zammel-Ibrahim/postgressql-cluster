@@ -19,6 +19,33 @@ resource "aws_key_pair" "deployer" {
   public_key = file("~/.ssh/deployer-key.pub")
 }
 
+resource "aws_iam_role" "ssm_role_custom_2" {
+  name = "ec2_ssm_role_custom_2"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_attach" {
+  role       = aws_iam_role.ssm_role_custom_2.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ssm_profile_custom" {
+  name = "ec2_ssm_profile_custom"
+  role = aws_iam_role.ssm_role_custom_2.name
+}
+
+
+
 # 1) Mgmt VPC (for bastion)
 module "vpc_mgmt" {
   source = "./modules/vpc"
@@ -63,6 +90,7 @@ resource "aws_vpc_peering_connection_accepter" "mgmt_db2_accept" {
   auto_accept               = true
 }
 
+
 # 4) EC2 + Etcd in each DB VPC
 module "compute_db1" {
   source         = "./modules/compute"
@@ -74,7 +102,8 @@ module "compute_db1" {
   instance_type  = var.instance_type
   name_prefix    = "db1"
   ssh_key_name   = aws_key_pair.deployer.key_name
-  bastion_sg_id  = aws_security_group.bastion_sg.id 
+  bastion_sg_id  = aws_security_group.bastion_sg.id
+  iam_instance_profile = aws_iam_instance_profile.ssm_profile_custom.name
 }
 module "compute_db2" {
   source         = "./modules/compute"
@@ -86,7 +115,8 @@ module "compute_db2" {
   instance_type  = var.instance_type
   name_prefix    = "db2"
   ssh_key_name   = aws_key_pair.deployer.key_name
-  bastion_sg_id  = aws_security_group.bastion_sg.id 
+  bastion_sg_id  = aws_security_group.bastion_sg.id
+  iam_instance_profile = aws_iam_instance_profile.ssm_profile_custom.name
 }
 
 # 5) Bastion in Mgmt VPC
@@ -209,5 +239,8 @@ resource "aws_route" "db2_private_to_nat" {
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.db2_nat.id
 }
+
+
+
 
 

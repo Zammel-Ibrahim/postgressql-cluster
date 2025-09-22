@@ -78,6 +78,8 @@ resource "aws_security_group" "pg_sg" {
   }
 }
 
+
+
 resource "aws_instance" "etcd" {
   count                  = var.etcd_count
   ami                    = "ami-0b09ffb6d8b58ca91"
@@ -90,10 +92,18 @@ resource "aws_instance" "etcd" {
 
 resource "aws_instance" "pg" {
   count                  = var.pg_count
-  ami                    = "ami-0b09ffb6d8b58ca91"
+  ami                    = "ami-01a1370c28ed96480"
   instance_type          = var.instance_type
   key_name               = var.ssh_key_name
   vpc_security_group_ids = [aws_security_group.pg_sg.id]
   subnet_id              = element(var.private_subnets, count.index % length(var.private_subnets))
+  iam_instance_profile   = var.iam_instance_profile != null ? var.iam_instance_profile : null
+  user_data = <<-EOF
+    #!/bin/bash
+    yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+    systemctl enable amazon-ssm-agent
+    systemctl start amazon-ssm-agent
+  EOF
+
   tags                   = { Name = "${var.name_prefix}-pg-${count.index+1}" }
 }
