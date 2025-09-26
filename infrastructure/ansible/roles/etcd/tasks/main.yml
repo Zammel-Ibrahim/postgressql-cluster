@@ -3,17 +3,28 @@
     url: "https://github.com/etcd-io/etcd/releases/download/{{ etcd_version }}/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
     dest: /tmp/etcd.tar.gz
 
-- name: Extract etcd
+- name: Extract etcd to /opt
   unarchive:
     src: /tmp/etcd.tar.gz
-    dest: /usr/local/bin/
+    dest: /opt/
     remote_src: true
-    creates: "/usr/local/bin/etcd"
+    creates: "/opt/etcd-{{ etcd_version }}-linux-amd64"
+
+- name: Symlink etcd and etcdctl to /usr/local/bin
+  file:
+    src: "/opt/etcd-{{ etcd_version }}-linux-amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+    force: yes
+  loop:
+    - etcd
+    - etcdctl
 
 - name: Create etcd user
   user:
     name: etcd
     system: yes
+
 - name: Create data dir
   file:
     path: /var/lib/etcd
@@ -29,6 +40,7 @@
       [Unit]
       Description=etcd key-value store
       After=network.target
+
       [Service]
       User=etcd
       ExecStart=/usr/local/bin/etcd \
@@ -39,10 +51,17 @@
         --listen-client-urls http://0.0.0.0:2379 \
         --advertise-client-urls http://{{ ansible_default_ipv4.address }}:2379 \
         --initial-cluster {{ etcd_initial_cluster }} \
-        --initial-cluster-state new
+        --initial-cluster-state new \
+        --initial-cluster-token etcd-cluster-1
       Restart=always
+      RestartSec=5
+
       [Install]
       WantedBy=multi-user.target
+  notify: restart etcd
+
+- name: Reload systemd
+  command: systemctl daemon-reload
 
 - name: Start etcd
   systemd:

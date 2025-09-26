@@ -2,7 +2,7 @@ scope: {{ pg_name }}
 name: {{ pg_name }}
 
 etcd:
-  host: {{ etcd_host }}
+  host: "{{ etcd_host }}"
 
 postgresql:
   bin_dir: /usr/pgsql-16/bin

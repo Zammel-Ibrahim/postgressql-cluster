@@ -19,6 +19,10 @@
   package:
     name: python3-pip
     state: present
+- name: Installer psycopg2-binary requis par Patroni
+  pip:
+    name: psycopg2-binary
+    executable: pip3    
 
 - name: Installer Patroni avec etcd
   pip:
@@ -38,13 +42,6 @@
     group: postgres
     mode: '0700'
 
-- name: Initialiser PostgreSQL 16
-  become: true
-  become_user: postgres
-  shell: "/usr/pgsql-16/bin/initdb -D {{ patroni_data_dir }}"
-  args:
-    creates: "{{ patroni_data_dir }}/PG_VERSION"
-
 - name: Créer le dossier /etc/keepalived
   file:
     path: /etc/keepalived
@@ -56,12 +53,23 @@
     src: patroni.yml.j2
     dest: /etc/patroni.yml
     mode: '0644'
+  notify: restart patroni
 
 - name: Déployer la configuration Keepalived
   template:
     src: keepalived.conf.j2
     dest: /etc/keepalived/keepalived.conf
     mode: '0644'
+  notify: restart keepalived
+
+- name: Créer le script de surveillance Patroni pour Keepalived
+  copy:
+    dest: /usr/local/bin/check_patroni.sh
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      curl -sf http://localhost:8008 | grep '"role": "leader"' > /dev/null
+      exit $?
 
 - name: Créer le service systemd pour Patroni
   copy:
@@ -81,12 +89,14 @@
       WantedBy=multi-user.target
     mode: '0644'
 
+- name: Recharger systemd
+  command: systemctl daemon-reload
+
 - name: Activer et démarrer Patroni & Keepalived
   systemd:
     name: "{{ item }}"
     enabled: yes
     state: started
-    daemon_reload: yes
   loop:
     - patroni
     - keepalived

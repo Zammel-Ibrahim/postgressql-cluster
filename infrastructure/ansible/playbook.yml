@@ -7,5 +7,11 @@
 - name: Configure Patroni + Keepalived
   hosts: patroni
   become: yes
+  vars:
+    etcd_cluster_ips: >-
+      {{ groups['etcd']
+         | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
+         | map('regex_replace', '(.*)', '\\1:2379')
+         | list }}
   roles:
     - patroni
