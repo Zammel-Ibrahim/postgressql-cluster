@@ -44,5 +44,5 @@ variable "ssh_public_key" {
 variable "ssh_private_key_path" {
   description = "Local path to private key for Ansible"
   type        = string
-  default     = "~/.ssh/deployer-key.pem"
+  default     = "~/.ssh/deployer-key"
 }

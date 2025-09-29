@@ -27,6 +27,19 @@ if [ ! -f "$KEY_PATH" ]; then
   exit 1
 fi
 
+#echo "📦 Copie de la clé vers le bastion..."
+#scp -i "$KEY_PATH" "$KEY_PATH" ec2-user@"$BASTION_IP":~/.ssh/deployer-key
+
+#echo "🔐 Fixation des permissions sur le bastion..."
+#ssh -i "$KEY_PATH" ec2-user@"$BASTION_IP" <<EOF
+#  chmod 700 ~/.ssh
+#  chmod 400 ~/.ssh/deployer-key
+#EOF
+
+#echo "✅ Clé copiée et sécurisée sur le bastion."
+
+
+
 popd >/dev/null
 
 echo "==> Génération de l'inventaire Ansible"

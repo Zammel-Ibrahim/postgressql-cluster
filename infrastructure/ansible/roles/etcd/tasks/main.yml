@@ -32,7 +32,18 @@
     owner: etcd
     group: etcd
     mode: '0755'
-
+    
+- name: Afficher etcd_initial_cluster
+  debug:
+    msg: "{{ etcd_initial_cluster }}"    
+    
+- name: Vérifier que le nom local est présent dans initial-cluster
+  assert:
+    that:
+      - etcd_initial_cluster is search(inventory_hostname)
+    fail_msg: "Le nom {{ inventory_hostname }} est absent de etcd_initial_cluster"
+    
+    
 - name: Create systemd unit
   copy:
     dest: /etc/systemd/system/etcd.service
@@ -59,6 +70,7 @@
       [Install]
       WantedBy=multi-user.target
   notify: restart etcd
+
 
 - name: Reload systemd
   command: systemctl daemon-reload
