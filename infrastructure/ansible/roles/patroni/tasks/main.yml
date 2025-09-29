@@ -48,19 +48,23 @@
     state: directory
     mode: '0755'
 
+- name: Afficher inventory_hostname
+  debug:
+    msg: "{{ inventory_hostname }}"
+    
 - name: Déployer la configuration Patroni
   template:
     src: patroni.yml.j2
     dest: /etc/patroni.yml
     mode: '0644'
-  notify: restart patroni
+  #notify: restart patroni
 
 - name: Déployer la configuration Keepalived
   template:
     src: keepalived.conf.j2
     dest: /etc/keepalived/keepalived.conf
     mode: '0644'
-  notify: restart keepalived
+  #notify: restart keepalived
 
 - name: Créer le script de surveillance Patroni pour Keepalived
   copy:

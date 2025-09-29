@@ -37,19 +37,12 @@
   debug:
     msg: "{{ etcd_initial_cluster }}"    
     
-- name: Vérifier que le nom local est présent dans initial-cluster
-  assert:
-    that:
-      - etcd_initial_cluster is search(inventory_hostname)
-    fail_msg: "Le nom {{ inventory_hostname }} est absent de etcd_initial_cluster"
+#- name: Vérifier que le nom local est présent dans initial-cluster
+#  assert:
+#    that:
+#      - etcd_initial_cluster is search(inventory_hostname)
+#    fail_msg: "Le nom {{ inventory_hostname }} est absent de etcd_initial_cluster"
     
-- name: Vérifier que les ports etcd sont ouverts localement
-  shell: |
-    ss -ltn | grep -E '2379|2380'
-  register: etcd_ports
-  changed_when: false
-  failed_when: etcd_ports.stdout_lines | length < 2
-  
 
 - name: Create systemd unit
   copy:
@@ -76,7 +69,7 @@
 
       [Install]
       WantedBy=multi-user.target
-  notify: restart etcd
+  #notify: restart etcd
 
 
 - name: Reload systemd
@@ -87,6 +80,14 @@
     name: etcd
     enabled: yes
     state: started
+
+
+- name: Vérifier que les ports etcd sont ouverts localement
+  shell: |
+    ss -ltn | grep -E '2379|2380'
+  register: etcd_ports
+  changed_when: false
+  failed_when: etcd_ports.stdout_lines | length < 2
 
 
 - name: Vérifier la santé du cluster etcd

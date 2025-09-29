@@ -1,10 +1,7 @@
 etcd_version: "v3.5.9"
 etcd_cluster_name: "pg-etcd-cluster"
-etcd_initial_cluster: >-
-  {{ groups['etcd']
-     | map('extract', hostvars, 'ansible_host')
-     | zip(groups['etcd'])
-     | map('reverse')
-     | map('join', '=http://')
-     | map('regex_replace', '$', ':2380')
-     | join(',') }}
+etcd_initial_cluster: >- 
+  {{ groups['etcd'] 
+  | map('extract', hostvars, 'ansible_host') 
+  | map('regex_replace', '^([0-9.]+)$', 'http://\1:2379') 
+  | join(',') }}

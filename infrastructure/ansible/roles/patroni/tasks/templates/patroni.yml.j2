@@ -2,7 +2,10 @@ scope: {{ pg_name }}
 name: {{ pg_name }}
 
 etcd:
-  host: "{{ etcd_host }}"
+  hosts:
+{% for host in groups['etcd'] if hostvars[host]['ansible_host'] is defined %}
+    - http://{{ hostvars[host]['ansible_host'] }}:2379
+{% endfor %}  
 
 postgresql:
   bin_dir: /usr/pgsql-16/bin
