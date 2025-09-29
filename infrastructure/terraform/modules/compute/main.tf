@@ -35,6 +35,19 @@ resource "aws_security_group" "etcd_sg" {
 }
 
 
+resource "aws_security_group_rule" "etcd_peer_ingress" { 
+
+  type = "ingress" 
+  from_port = 2379 
+  to_port = 2380 
+  protocol = "tcp" 
+  security_group_id = aws_security_group.etcd_sg.id 
+  source_security_group_id = aws_security_group.etcd_sg.id 
+  description = "Allow etcd peer and client traffic between etcd nodes" 
+  
+}
+
+
 resource "aws_security_group" "pg_sg" {
   name        = "${var.name_prefix}-pg-sg"
   vpc_id      = var.vpc_id

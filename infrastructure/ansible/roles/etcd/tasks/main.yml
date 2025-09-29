@@ -43,7 +43,14 @@
       - etcd_initial_cluster is search(inventory_hostname)
     fail_msg: "Le nom {{ inventory_hostname }} est absent de etcd_initial_cluster"
     
-    
+- name: Vérifier que les ports etcd sont ouverts localement
+  shell: |
+    ss -ltn | grep -E '2379|2380'
+  register: etcd_ports
+  changed_when: false
+  failed_when: etcd_ports.stdout_lines | length < 2
+  
+
 - name: Create systemd unit
   copy:
     dest: /etc/systemd/system/etcd.service
@@ -80,3 +87,11 @@
     name: etcd
     enabled: yes
     state: started
+
+
+- name: Vérifier la santé du cluster etcd
+  shell: |
+    etcdctl --endpoints="{{ etcd_initial_cluster | regex_replace('=http://', ':2379') | join(',') }}" endpoint health
+  register: etcdctl_health
+  changed_when: false
+  failed_when: "'unhealthy' in etcdctl_health.stdout"    
