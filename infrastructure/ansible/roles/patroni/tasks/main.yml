@@ -1,81 +1,39 @@
----
-- name: Installer le dépôt PostgreSQL 16
+- name: Add PostgreSQL {{ pg_version }} repo
   dnf:
     name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
     state: present
-    disable_gpg_check: yes
 
-- name: Désactiver le module PostgreSQL par défaut
+- name: Disable built-in PostgreSQL module
   command: dnf -qy module disable postgresql
+  changed_when: false
 
-- name: Installer PostgreSQL 16
+- name: Install PostgreSQL {{ pg_version }} and Patroni
   dnf:
     name:
-      - postgresql16
-      - postgresql16-server
+      - postgresql{{ pg_version }}
+      - postgresql{{ pg_version }}-server
+      - python3-pip
     state: present
 
-- name: Installer pip3 si absent
-  package:
-    name: python3-pip
-    state: present
-- name: Installer psycopg2-binary requis par Patroni
+- name: Install Patroni via pip
   pip:
-    name: psycopg2-binary
-    executable: pip3    
-
-- name: Installer Patroni avec etcd
-  pip:
-    name: patroni[etcd]
+    name: patroni
     executable: pip3
 
-- name: Installer Keepalived
-  dnf:
-    name: keepalived
-    state: present
+- name: Initialize PostgreSQL cluster
+  command: /usr/pgsql-{{ pg_version }}/bin/postgresql-{{ pg_version }}-setup initdb
+  args:
+    creates: "{{ pg_data_dir }}/PG_VERSION"
 
-- name: Créer le répertoire de données PostgreSQL
-  file:
-    path: "{{ patroni_data_dir }}"
-    state: directory
-    owner: postgres
-    group: postgres
-    mode: '0700'
-
-- name: Créer le dossier /etc/keepalived
-  file:
-    path: /etc/keepalived
-    state: directory
-    mode: '0755'
-
-- name: Afficher inventory_hostname
-  debug:
-    msg: "{{ inventory_hostname }}"
-    
-- name: Déployer la configuration Patroni
+- name: Deploy Patroni config
   template:
     src: patroni.yml.j2
     dest: /etc/patroni.yml
+    owner: root
+    group: root
     mode: '0644'
-  #notify: restart patroni
 
-- name: Déployer la configuration Keepalived
-  template:
-    src: keepalived.conf.j2
-    dest: /etc/keepalived/keepalived.conf
-    mode: '0644'
-  #notify: restart keepalived
-
-- name: Créer le script de surveillance Patroni pour Keepalived
-  copy:
-    dest: /usr/local/bin/check_patroni.sh
-    mode: '0755'
-    content: |
-      #!/bin/bash
-      curl -sf http://localhost:8008 | grep '"role": "leader"' > /dev/null
-      exit $?
-
-- name: Créer le service systemd pour Patroni
+- name: Create systemd unit for Patroni
   copy:
     dest: /etc/systemd/system/patroni.service
     content: |
@@ -85,22 +43,35 @@
 
       [Service]
       Type=simple
-      User=postgres
       ExecStart=/usr/local/bin/patroni /etc/patroni.yml
       Restart=always
+      User=postgres
 
       [Install]
       WantedBy=multi-user.target
+
+- name: Enable and start Patroni
+  systemd:
+    name: patroni
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Install Keepalived
+  dnf:
+    name: keepalived
+    state: present
+
+- name: Deploy Keepalived config
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
     mode: '0644'
 
-- name: Recharger systemd
-  command: systemctl daemon-reload
-
-- name: Activer et démarrer Patroni & Keepalived
+- name: Enable and start Keepalived
   systemd:
-    name: "{{ item }}"
-    enabled: yes
+    name: keepalived
+    enabled: true
     state: started
-  loop:
-    - patroni
-    - keepalived

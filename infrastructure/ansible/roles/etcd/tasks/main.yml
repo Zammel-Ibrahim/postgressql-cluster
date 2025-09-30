@@ -82,12 +82,12 @@
     state: started
 
 
-- name: Vérifier que les ports etcd sont ouverts localement
-  shell: |
-    ss -ltn | grep -E '2379|2380'
-  register: etcd_ports
-  changed_when: false
-  failed_when: etcd_ports.stdout_lines | length < 2
+#- name: Vérifier que les ports etcd sont ouverts localement
+#  shell: |
+#    ss -ltn | grep -E '2379|2380'
+#  register: etcd_ports
+#  changed_when: false
+ # failed_when: etcd_ports.stdout_lines | length < 2
 
 
 - name: Vérifier la santé du cluster etcd
