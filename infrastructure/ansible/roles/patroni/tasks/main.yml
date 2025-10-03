@@ -24,18 +24,42 @@
   args:
     creates: "{{ pg_data_dir }}/PG_VERSION"
     
-- name: Installer psycopg2-binary requis par Patroni 
-  pip: 
-    name: psycopg2-binary 
-    executable: pip3 
-    state: present
-    
-- name: Installer le client etcd requis par Patroni 
-  pip: 
-    name: python-etcd 
-    executable: pip3 
-    state: present    
+- name: Trouver le chemin complet du binaire patroni
+  command: which patroni
+  register: patroni_bin
+  changed_when: false
 
+- name: Récupérer la première ligne (shebang) de patroni
+  command: head -n1 {{ patroni_bin.stdout }}
+  register: patroni_shebang
+  changed_when: false
+
+- name: Extraire le chemin de l’interpréteur Python
+  set_fact:
+    patroni_python: "{{ patroni_shebang.stdout | regex_replace('^#!', '') }}"
+
+- name: Installer python-etcd v2 ? (nettoyage)
+  pip:
+    name: python-etcd
+    executable: "{{ patroni_python }} -m pip"
+    state: absent
+  ignore_errors: true
+
+- name: Installer etcd3gw et protobuf compatible
+  pip:
+    name:
+      - etcd3gw
+      - protobuf==3.20.3
+    executable: "{{ patroni_python }} -m pip"
+    state: present
+
+- name: Vérifier l’import de etcd3gw et patroni
+  shell: >
+    {{ patroni_python }} -c "import etcd3gw, patroni; print('OK')"
+  register: import_check
+  failed_when: "'OK' not in import_check.stdout"
+  changed_when: false
+  
 - name: Installer Patroni via pip
   pip:
     name: "patroni{{ patroni_version }}"

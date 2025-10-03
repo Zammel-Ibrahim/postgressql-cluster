@@ -6,8 +6,9 @@ etcd:
 {% for host in groups['etcd'] %}
     - http://{{ hostvars[host]['ansible_host'] }}:2379
 {% endfor %}
-  protocol: http
   ttl: 30
+  protocol: http
+  api_version: 3
 
 postgresql:
   bin_dir: {{ pg_bin_dir }}
