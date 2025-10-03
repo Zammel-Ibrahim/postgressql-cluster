@@ -1,0 +1,17 @@
+---
+pg_version: 16
+pg_port: 5432
+
+pg_data_dir: /var/lib/pgsql/{{ pg_version }}/data
+pg_conf_dir: "{{ pg_data_dir }}"
+pg_bin_dir: /usr/pgsql-{{ pg_version }}/bin
+
+patroni_version: ">=2.2.1"
+patroni_bin: /usr/local/bin/patroni
+patroni_scope: pgcluster
+
+superuser: postgres
+superuser_password: postgres
+
+replication_user: replicator
+replication_pass: replpass

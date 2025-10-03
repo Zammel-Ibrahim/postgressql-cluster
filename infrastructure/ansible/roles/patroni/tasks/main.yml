@@ -1,13 +1,17 @@
-- name: Add PostgreSQL {{ pg_version }} repo
+---
+- name: Ajouter le repo PostgreSQL {{ pg_version }}
   dnf:
     name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
     state: present
+    disable_gpg_check: yes
 
-- name: Disable built-in PostgreSQL module
-  command: dnf -qy module disable postgresql
-  changed_when: false
+- name: Désactiver le module PostgreSQL natif
+  dnf:
+    name: '@postgresql'
+    state: absent
+  ignore_errors: yes
 
-- name: Install PostgreSQL {{ pg_version }} and Patroni
+- name: Installer PostgreSQL, pip et dépendances
   dnf:
     name:
       - postgresql{{ pg_version }}
@@ -15,63 +19,40 @@
       - python3-pip
     state: present
 
-- name: Install Patroni via pip
-  pip:
-    name: patroni
-    executable: pip3
-
-- name: Initialize PostgreSQL cluster
-  command: /usr/pgsql-{{ pg_version }}/bin/postgresql-{{ pg_version }}-setup initdb
+- name: Initialiser la base de données
+  command: "{{ pg_bin_dir }}/postgresql-{{ pg_version }}-setup initdb"
   args:
     creates: "{{ pg_data_dir }}/PG_VERSION"
 
-- name: Deploy Patroni config
+- name: Installer Patroni via pip
+  pip:
+    name: "patroni{{ patroni_version }}"
+    executable: pip3
+    state: present
+
+- name: Déployer la configuration Patroni
   template:
     src: patroni.yml.j2
     dest: /etc/patroni.yml
     owner: root
     group: root
     mode: '0644'
+  notify: Reload systemd
 
-- name: Create systemd unit for Patroni
-  copy:
-    dest: /etc/systemd/system/patroni.service
-    content: |
-      [Unit]
-      Description=Patroni PostgreSQL HA
-      After=network.target
-
-      [Service]
-      Type=simple
-      ExecStart=/usr/local/bin/patroni /etc/patroni.yml
-      Restart=always
-      User=postgres
-
-      [Install]
-      WantedBy=multi-user.target
-
-- name: Enable and start Patroni
-  systemd:
-    name: patroni
-    enabled: true
-    state: started
-    daemon_reload: true
-
-- name: Install Keepalived
-  dnf:
-    name: keepalived
-    state: present
-
-- name: Deploy Keepalived config
+- name: Déployer l’unité systemd Patroni
   template:
-    src: keepalived.conf.j2
-    dest: /etc/keepalived/keepalived.conf
+    src: patroni.service.j2
+    dest: /etc/systemd/system/patroni.service
     owner: root
     group: root
     mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Patroni
 
-- name: Enable and start Keepalived
+- name: Activer et démarrer Patroni
   systemd:
-    name: keepalived
-    enabled: true
+    name: patroni
+    enabled: yes
     state: started
+    daemon_reload: no

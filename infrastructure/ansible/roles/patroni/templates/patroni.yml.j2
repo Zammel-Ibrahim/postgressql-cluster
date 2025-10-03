@@ -1,0 +1,31 @@
+scope: {{ patroni_scope }}
+name: {{ inventory_hostname }}
+
+etcd:
+  hosts:
+{% for host in groups['etcd'] %}
+    - http://{{ hostvars[host]['ansible_host'] }}:2379
+{% endfor %}
+  protocol: http
+  ttl: 30
+
+postgresql:
+  bin_dir: {{ pg_bin_dir }}
+  data_dir: {{ pg_data_dir }}
+  config_dir: {{ pg_conf_dir }}
+  listen: 0.0.0.0:{{ pg_port }}
+  connect_address: {{ ansible_host }}:{{ pg_port }}
+  authentication:
+    superuser:
+      username: {{ superuser }}
+      password: {{ superuser_password }}
+    replication:
+      username: {{ replication_user }}
+      password: {{ replication_pass }}
+  parameters:
+    wal_level: replica
+    hot_standby: "on"
+    max_wal_senders: 5
+    max_replication_slots: 5
+    synchronous_commit: "on"
+    synchronous_standby_names: "*"
