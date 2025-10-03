@@ -23,6 +23,18 @@
   command: "{{ pg_bin_dir }}/postgresql-{{ pg_version }}-setup initdb"
   args:
     creates: "{{ pg_data_dir }}/PG_VERSION"
+    
+- name: Installer psycopg2-binary requis par Patroni 
+  pip: 
+    name: psycopg2-binary 
+    executable: pip3 
+    state: present
+    
+- name: Installer le client etcd requis par Patroni 
+  pip: 
+    name: python-etcd 
+    executable: pip3 
+    state: present    
 
 - name: Installer Patroni via pip
   pip:

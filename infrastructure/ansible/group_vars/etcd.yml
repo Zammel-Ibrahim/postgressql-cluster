@@ -6,5 +6,5 @@ etcd_initial_cluster: >-
      | zip(groups['etcd'])
      | map('reverse')
      | map('join', '=http://')
-     | map('regex_replace', '$', ':2379')
+     | map('regex_replace', '$', ':2380')
      | join(',') }}
