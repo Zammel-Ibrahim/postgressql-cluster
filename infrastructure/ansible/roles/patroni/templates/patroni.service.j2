@@ -1,12 +1,12 @@
 [Unit]
-Description=Patroni for PostgreSQL {{ pg_version }}
+Description=Patroni for PostgreSQL 16
 After=network.target
 
 [Service]
-Type=simple
-ExecStart={{ patroni_bin }} /etc/patroni.yml
-Restart=on-failure
 User=postgres
+ExecStart=/opt/patroni-venv/bin/patroni /etc/patroni.yml
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

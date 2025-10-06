@@ -1,15 +1,46 @@
 scope: {{ patroni_scope }}
 name: {{ inventory_hostname }}
 
+restapi:
+  listen: {{ ansible_host }}:8008
+  connect_address: {{ ansible_host }}:8008
+
 etcd:
   hosts:
 {% for host in groups['etcd'] %}
-    - http://{{ hostvars[host]['ansible_host'] }}:2379
+    - {{ hostvars[host]['ansible_host'] }}:2379
 {% endfor %}
-  ttl: 30
   protocol: http
-  api_version: 3
+  use_proxies: false
+  discovery: false
 
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      
+  initdb:
+  - encoding: UTF8
+  - data-checksums
+
+  pg_hba:
+  - host replication repuser 127.0.0.1/32 md5
+  - host replication repuser 0.0.0.0/0 md5
+  - host all all 0.0.0.0/0 md5
+
+  users:
+    admin:
+      password: admin
+      options:
+        - createrole
+        - createdb
+        
+        
 postgresql:
   bin_dir: {{ pg_bin_dir }}
   data_dir: {{ pg_data_dir }}

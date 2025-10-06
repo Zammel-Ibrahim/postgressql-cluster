@@ -1,94 +1,78 @@
 ---
-- name: Ajouter le repo PostgreSQL {{ pg_version }}
-  dnf:
-    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-    state: present
-    disable_gpg_check: yes
-
-- name: Désactiver le module PostgreSQL natif
-  dnf:
-    name: '@postgresql'
-    state: absent
-  ignore_errors: yes
-
-- name: Installer PostgreSQL, pip et dépendances
-  dnf:
+- name: Installer les paquets système requis
+  yum:
     name:
-      - postgresql{{ pg_version }}
-      - postgresql{{ pg_version }}-server
+      - epel-release
+      - gcc
+      - python3
       - python3-pip
+      - python3-devel
+      - libpq-devel
+      - sudo
+      - curl
     state: present
 
-- name: Initialiser la base de données
-  command: "{{ pg_bin_dir }}/postgresql-{{ pg_version }}-setup initdb"
-  args:
-    creates: "{{ pg_data_dir }}/PG_VERSION"
-    
-- name: Trouver le chemin complet du binaire patroni
-  command: which patroni
-  register: patroni_bin
-  changed_when: false
+- name: Télécharger le dépôt PGDG
+  get_url:
+    url: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    dest: /tmp/pgdg-redhat-repo-latest.noarch.rpm
 
-- name: Récupérer la première ligne (shebang) de patroni
-  command: head -n1 {{ patroni_bin.stdout }}
-  register: patroni_shebang
-  changed_when: false
+- name: Installer le dépôt PGDG
+  command: dnf install -y --nogpgcheck /tmp/pgdg-redhat-repo-latest.noarch.rpm
 
-- name: Extraire le chemin de l’interpréteur Python
-  set_fact:
-    patroni_python: "{{ patroni_shebang.stdout | regex_replace('^#!', '') }}"
+- name: Désactiver le module AppStream PostgreSQL
+  shell: dnf -qy module disable postgresql
 
-- name: Installer python-etcd v2 ? (nettoyage)
-  pip:
-    name: python-etcd
-    executable: "{{ patroni_python }} -m pip"
-    state: absent
-  ignore_errors: true
-
-- name: Installer etcd3gw et protobuf compatible
-  pip:
+- name: Installer PostgreSQL 16 depuis PGDG
+  yum:
     name:
-      - etcd3gw
-      - protobuf==3.20.3
-    executable: "{{ patroni_python }} -m pip"
+      - postgresql16
+      - postgresql16-server
+      - postgresql16-contrib
     state: present
 
-- name: Vérifier l’import de etcd3gw et patroni
-  shell: >
-    {{ patroni_python }} -c "import etcd3gw, patroni; print('OK')"
-  register: import_check
-  failed_when: "'OK' not in import_check.stdout"
-  changed_when: false
-  
-- name: Installer Patroni via pip
+- name: Créer un virtualenv Python pour Patroni
+  command: python3 -m venv /opt/patroni-venv
+  args:
+    creates: /opt/patroni-venv
+
+- name: Mettre à jour pip, setuptools et wheel
   pip:
-    name: "patroni{{ patroni_version }}"
-    executable: pip3
-    state: present
+    virtualenv: /opt/patroni-venv
+    name:
+      - pip
+      - setuptools
+      - wheel
+    state: latest
 
-- name: Déployer la configuration Patroni
+- name: Installer Patroni et ses dépendances
+  pip:
+    virtualenv: /opt/patroni-venv
+    name:
+      - patroni
+      - psycopg2-binary
+      - python-etcd
+
+- name: Vérifier que psycopg2 est bien installé
+  command: /opt/patroni-venv/bin/python -c "import psycopg2"
+  register: psycopg_check
+  failed_when: psycopg_check.rc != 0
+
+- name: Déployer le fichier de configuration Patroni
   template:
-    src: patroni.yml.j2
+    src: templates/patroni.yml.j2
     dest: /etc/patroni.yml
-    owner: root
-    group: root
     mode: '0644'
-  notify: Reload systemd
 
-- name: Déployer l’unité systemd Patroni
+- name: Déployer le service systemd de Patroni
   template:
-    src: patroni.service.j2
+    src: templates/patroni.service.j2
     dest: /etc/systemd/system/patroni.service
-    owner: root
-    group: root
     mode: '0644'
-  notify:
-    - Reload systemd
-    - Restart Patroni
 
-- name: Activer et démarrer Patroni
+- name: Recharger systemd et démarrer Patroni
   systemd:
     name: patroni
+    daemon_reload: yes
     enabled: yes
     state: started
-    daemon_reload: no
