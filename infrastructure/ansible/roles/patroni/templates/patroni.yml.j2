@@ -5,7 +5,7 @@ restapi:
   listen: {{ ansible_host }}:8008
   connect_address: {{ ansible_host }}:8008
 
-etcd:
+etcd3:
   hosts:
 {% for host in groups['etcd'] %}
     - {{ hostvars[host]['ansible_host'] }}:2379
