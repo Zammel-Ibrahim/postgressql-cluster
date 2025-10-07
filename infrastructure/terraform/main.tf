@@ -91,6 +91,22 @@ resource "aws_vpc_peering_connection_accepter" "mgmt_db2_accept" {
 }
 
 
+resource "aws_vpc_peering_connection" "db2_db1" {
+  vpc_id      = module.vpc_db2.vpc_id
+  peer_vpc_id = module.vpc_db1.vpc_id
+  auto_accept = false
+  peer_region = var.aws_region
+  tags = { Name = "peering-db2-db1" }
+}
+
+resource "aws_vpc_peering_connection_accepter" "db2_db1_accept" {
+  vpc_peering_connection_id = aws_vpc_peering_connection.db2_db1.id
+  auto_accept               = true
+}
+
+
+
+
 # 4) EC2 + Etcd in each DB VPC
 module "compute_db1" {
   source         = "./modules/compute"
@@ -238,6 +254,20 @@ resource "aws_route" "db2_private_to_nat" {
   route_table_id         = module.vpc_db2.private_route_table_id
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.db2_nat.id
+}
+
+
+resource "aws_route" "db2_to_db1" {
+  route_table_id            = module.vpc_db2.private_route_table_id
+  destination_cidr_block    = var.db_vpc_cidrs[0] # db1 CIDR
+  vpc_peering_connection_id = aws_vpc_peering_connection.db2_db1.id
+}
+
+
+resource "aws_route" "db1_to_db2" {
+  route_table_id            = module.vpc_db1.private_route_table_id
+  destination_cidr_block    = var.db_vpc_cidrs[1] # db2 CIDR
+  vpc_peering_connection_id = aws_vpc_peering_connection.db2_db1.id
 }
 
 
