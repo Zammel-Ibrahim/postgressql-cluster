@@ -52,6 +52,12 @@
       - patroni
       - psycopg2-binary
       - python-etcd
+- name: Rendre patronictl accessible globalement
+  file:
+    src: /opt/patroni-venv/bin/patronictl
+    dest: /usr/local/bin/patronictl
+    state: link
+    force: yes
 
 - name: Vérifier que psycopg2 est bien installé
   command: /opt/patroni-venv/bin/python -c "import psycopg2"
