@@ -76,7 +76,24 @@
     dest: /etc/systemd/system/patroni.service
     mode: '0644'
 
-- name: Recharger systemd et démarrer Patroni
+
+- name: demarer systemd et démarrer Patroni
+  systemd:
+    name: patroni
+    daemon_reload: yes
+    enabled: yes
+    state: started
+    
+- name: Ajouter les nœuds replicas dans pg_hba.conf sur tous les nœuds
+  lineinfile:
+    path: /var/lib/pgsql/16/data/pg_hba.conf
+    line: "host replication replicator {{ hostvars[item]['ansible_host'] }}/32 md5"
+    insertafter: '^#.*TYPE.*DATABASE.*USER.*ADDRESS.*METHOD'
+    state: present
+  loop: "{{ groups['patroni'] | difference([inventory_hostname]) }}"
+  notify: Restart Patroni
+  
+- name: Redemarrer systemd et démarrer Patroni
   systemd:
     name: patroni
     daemon_reload: yes
