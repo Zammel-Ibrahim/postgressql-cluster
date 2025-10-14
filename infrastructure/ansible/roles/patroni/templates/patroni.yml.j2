@@ -14,7 +14,6 @@ etcd3:
   use_proxies: false
   discovery: false
 
-
 bootstrap:
   dcs:
     ttl: 30
@@ -23,25 +22,23 @@ bootstrap:
     maximum_lag_on_failover: 1048576
     postgresql:
       use_pg_rewind: true
-      
+
   initdb:
-  - encoding: UTF8
-  - data-checksums
+    - encoding: UTF8
+    - data-checksums
 
   pg_hba:
-  - host replication repuser 127.0.0.1/32 md5
-  - host replication repuser 10.20.101.193/32
-  - host replication repuser 0.0.0.0/0 md5
-  - host all all 0.0.0.0/0 md5
+    - host replication {{ replication_user }} 127.0.0.1/32 md5
+    - host replication {{ replication_user }} 0.0.0.0/0 md5
+    - host all all 0.0.0.0/0 md5
 
   users:
     admin:
-      password: admin
+      password: {{ admin_password | default('admin') }}
       options:
         - createrole
         - createdb
-        
-        
+
 postgresql:
   bin_dir: {{ pg_bin_dir }}
   data_dir: {{ pg_data_dir }}

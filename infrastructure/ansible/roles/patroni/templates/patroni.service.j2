@@ -1,11 +1,12 @@
 [Unit]
-Description=Patroni for PostgreSQL 16
+Description=Patroni PostgreSQL cluster manager
 After=network.target
 
 [Service]
+Type=simple
 User=postgres
 ExecStart=/opt/patroni-venv/bin/patroni /etc/patroni.yml
-Restart=always
+Restart=on-failure
 RestartSec=5
 
 [Install]
