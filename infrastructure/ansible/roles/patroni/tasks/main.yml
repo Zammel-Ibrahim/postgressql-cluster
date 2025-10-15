@@ -118,16 +118,62 @@
   changed_when: false
   failed_when: false
 
-- name: Nettoyer le data_dir si non bootstrap et data existante
-  shell: rm -rf {{ pg_data_dir }}/*
-  become: true
-  become_user: postgres
+- name: Obtenir system_id local via pg_controldata si possible
+  command: "{{ pg_bin_dir }}/pg_controldata {{ pg_data_dir }} | grep 'Database system identifier' | awk '{print $4}'"
+  register: local_sysid
+  failed_when: false
+  changed_when: false
   when:
-    - inventory_hostname != groups['patroni'][0]
     - pg_data_dir_stat.stat.exists
     - pg_data_dir_stat.stat.isdir
     - pg_data_dir_du.stdout is defined
     - pg_data_dir_du.stdout | int > 0
+  become: true
+  become_user: postgres
+
+- name: Obtenir system_id du leader via pg_controldata (délégué au leader)
+  vars:
+    leader_host: "{{ groups['patroni'][0] }}"
+    leader_data_dir: "{{ hostvars[ leader_host ]['pg_data_dir'] | default(pg_data_dir) }}"
+    leader_bin_dir: "{{ hostvars[ leader_host ]['pg_bin_dir'] | default(pg_bin_dir) }}"
+  command: "{{ leader_bin_dir }}/pg_controldata {{ leader_data_dir }} | grep 'Database system identifier' | awk '{print $4}'"
+  delegate_to: "{{ leader_host }}"
+  register: leader_sysid
+  failed_when: false
+  changed_when: false
+  become: true
+  become_user: postgres
+
+- name: Debug system ids
+  debug:
+    msg:
+      - "local_sysid={{ local_sysid.stdout | default('undefined') }}"
+      - "leader_sysid={{ leader_sysid.stdout | default('undefined') }}"
+
+- name: Purger le data_dir si system_id mismatch (sécurisé)
+  file:
+    path: "{{ pg_data_dir }}"
+    state: absent
+  become: true
+  when:
+    - inventory_hostname != groups['patroni'][0]
+    - local_sysid.stdout is defined
+    - leader_sysid.stdout is defined
+    - local_sysid.stdout != leader_sysid.stdout
+
+- name: Recréer proprement le data_dir après purge
+  file:
+    path: "{{ pg_data_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0700'
+  become: true
+  when:
+    - inventory_hostname != groups['patroni'][0]
+    - local_sysid.stdout is defined
+    - leader_sysid.stdout is defined
+    - local_sysid.stdout != leader_sysid.stdout
 
 - name: Initialiser PostgreSQL si data_dir vide et nœud bootstrap
   become: true
@@ -148,6 +194,7 @@
     owner: postgres
     group: postgres
     recurse: yes
+  become: true
 
 - name: Activer Patroni au démarrage
   systemd:
@@ -163,7 +210,7 @@
 
 - name: Attendre le démarrage du REST API de Patroni
   uri:
-    url: "http://{{ ansible_host }}:8008/patroni"
+    url: "http://{{ ansible_host }}:{{ patroni_rest_port | default(8008) }}/patroni"
     method: GET
     status_code: 200
     return_content: no
