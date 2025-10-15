@@ -7,3 +7,9 @@
   systemd:
     name: patroni
     state: restarted
+    
+- name: Restart keepalived
+  systemd:
+    name: keepalived
+    state: restarted
+    daemon_reload: yes    

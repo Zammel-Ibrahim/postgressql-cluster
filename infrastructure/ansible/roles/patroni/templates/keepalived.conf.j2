@@ -1,0 +1,26 @@
+vrrp_script chk_patroni {
+    script "/usr/local/bin/check_patroni_health.sh"
+    interval 2
+    timeout 2
+    fall 2
+    rise 2
+    weight -2
+}
+
+vrrp_instance VI_{{ vip_name | default('pgvip') }} {
+    state {{ 'MASTER' if (groups['patroni'].index(inventory_hostname) == 0) else 'BACKUP' }}
+    interface "ens5"
+    virtual_router_id {{ keepalived_vrid }}
+    priority {{ keepalived_base_priority - (groups['patroni'].index(inventory_hostname) * keepalived_priority_step) }}
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass {{ keepalived_auth_pass }}
+    }
+    virtual_ipaddress {
+        {{ keepalived_vip }}
+    }
+    track_script {
+        chk_patroni
+    }
+}

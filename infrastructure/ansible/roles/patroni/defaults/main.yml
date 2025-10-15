@@ -15,3 +15,12 @@ superuser_password: postgres
 
 replication_user: replicator
 replication_pass: replpass
+# Keepalived defaults
+keepalived_vip: "10.20.101.200"
+keepalived_interface: "ens5"
+keepalived_vrid: 51
+keepalived_auth_pass: "changeMe"
+vip_name: "pgvip"
+keepalived_base_priority: 150
+keepalived_priority_step: 10
+patroni_rest_port: 8008

@@ -29,18 +29,32 @@
   register: _pgdg_install
   changed_when: _pgdg_install.rc == 0
 
-- name: Vérifier si le module PostgreSQL est déjà désactivé
-  shell: dnf module list postgresql | grep -q '^postgresql.*\[d\]'
-  register: pg_module_disabled
+- name: Check if PostgreSQL AppStream module is enabled
+  command: dnf module list postgresql
+  register: _pg_module_list
   failed_when: false
   changed_when: false
 
-- name: Désactiver le module AppStream PostgreSQL
-  shell: dnf -qy module disable postgresql
-  args:
-    warn: false
-  when: not pg_module_disabled.rc == 0
+- name: Decide if PostgreSQL AppStream module appears enabled
+  set_fact:
+    pg_module_enabled: >-
+      {{ (_pg_module_list.stdout | default('') + '\n' + (_pg_module_list.stderr | default(''))) 
+         is search('postgresql.*\\[[[:alpha:]]\\]') }}
 
+- name: Debug module state
+  debug:
+    msg:
+      - "dnf rc={{ _pg_module_list.rc }}"
+      - "pg_module_enabled={{ pg_module_enabled }}"
+
+- name: Disable AppStream PostgreSQL module if present (safe)
+  command: dnf -qy module disable postgresql
+  when: pg_module_enabled
+  register: module_disable_result
+  failed_when: false
+  changed_when: module_disable_result.rc == 0
+  
+  
 - name: Installer PostgreSQL 16 depuis PGDG
   yum:
     name:
@@ -248,6 +262,61 @@
   until: patroni_list.stdout is defined and "'Leader'" in patroni_list.stdout
   failed_when: false
   changed_when: false
+  
+  
+- name: Ensure required packages are installed
+  package:
+    name:
+      - keepalived
+      - curl
+      - jq
+    state: present
+
+- name: Create keepalived config directory
+  file:
+    path: /etc/keepalived
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy keepalived configuration
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    force: yes
+    mode: '0644'
+  notify: Restart keepalived
+
+- name: Deploy Patroni health check script for Keepalived
+  template:
+    src: check_patroni_health.sh.j2
+    dest: /usr/local/bin/check_patroni_health.sh
+    owner: root
+    group: root
+    force: yes
+    mode: '0755'
+  notify: Restart keepalived
+
+- name: Ensure keepalived service enabled and started
+  systemd:
+    name: keepalived
+    enabled: yes
+    state: started
+  register: keepalived_started
+
+- name: Wait for VIP to appear on interface
+  command: ip addr show dev {{ keepalived_interface }}
+  register: ip_dev
+  retries: 10
+  delay: 3
+  until: ip_dev.stdout is defined
+  changed_when: false
+  failed_when: false
+  when: keepalived_started is defined
+  
 
 - name: Afficher l’état du cluster Patroni
   command: /usr/local/bin/patronictl -c /etc/patroni.yml list

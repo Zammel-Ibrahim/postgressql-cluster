@@ -1,0 +1,15 @@
+#!/bin/bash
+# Returns 0 when this node is leader according to Patroni REST API, non-zero otherwise
+
+HOST="{{ ansible_host }}"
+PORT={{ patroni_rest_port | default(8008) }}
+TIMEOUT=2
+
+# Query Patroni REST API
+state=$(curl -s --max-time $TIMEOUT "http://$HOST:$PORT/patroni" | jq -r '.state' 2>/dev/null)
+
+if [ "$state" = "leader" ]; then
+  exit 0
+else
+  exit 1
+fi
